@@ -15,13 +15,11 @@ __license__   = "Apache 2.0"
 __rootpath__  = os.path.dirname(__file__)
 
 USAGE = """
-NOEfinder.py
-
   Making better use of unused peaks (workingtitle)
 
 Author:     {author}
 Version:    {version}
-Copyright:  {copyright}
+License:    {license}
 
 Required input files:
 - peakfile: H-C-H noesy peakfile in Xeasy format
@@ -56,7 +54,7 @@ FilterPeaks performs this task by:
   # The distance Thr114Ha-Lys106Hd* and Thr114Ha-Lys135Hd* is too large then it could be a noe between
   # thr114Ha and thy1ch3/thy10ch3/thy38ch3/thy9ch3
 
-""".format(author=__author__, version=__version__, copyright=__copyright__)
+""".format(author=__author__, version=__version__, license=__license__)
 
 # Primary program configuration
 STRUCTURE_DICT  = {'id':0, 'atom':None, 'resi':None, 'resn':0, 'coor':(0.00, 0.00, 0.00)}
@@ -709,7 +707,9 @@ if __name__ == '__main__':
   # Running from command line, parse argument
   import argparse
 
-  parser = argparse.ArgumentParser(usage=USAGE)
+  parser = argparse.ArgumentParser(
+      description='filterPeaks command line options', usage=USAGE,
+      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument( "-p", "--peaks", action="store", dest="peak_file", type=str, help="Xeasy peak file", required=True)
   parser.add_argument( "-a", "--assignemnts", action="store", dest="assignment_file", type=str, help="Xeasy assignement file")
   parser.add_argument( "-y", "--sparky", action="store", dest="sparky_file", type=str, help="Sparky .proj project file", required=True)
