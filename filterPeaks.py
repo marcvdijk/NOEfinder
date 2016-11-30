@@ -1,8 +1,12 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
-import os, sys, copy, re, imp
+import os
+import sys
+import copy
+import re
+import imp
 import logging
-import ConfigParser
 
 from   math      import sqrt
 
@@ -10,16 +14,13 @@ __docformat__ = 'restructuredtext'
 __version__   = '{major:d}.{minor:d}.{micro:d}'.format(major=1, minor=0, micro=0)
 __author__    = 'Marc van Dijk'
 __status__    = 'release beta1'
-__date__      = '10 March 2016'
-__license__   = "Apache 2.0"
+__date__      = '1 January 2017'
+__license__   = 'Apache 2.0'
+__copyright__ = 'Copyright (c) 2016 Marc van Dijk'
 __rootpath__  = os.path.dirname(__file__)
 
 USAGE = """
   Making better use of unused peaks (workingtitle)
-
-Author:     {author}
-Version:    {version}
-License:    {license}
 
 Required input files:
 - peakfile: H-C-H noesy peakfile in Xeasy format
@@ -54,7 +55,9 @@ FilterPeaks performs this task by:
   # The distance Thr114Ha-Lys106Hd* and Thr114Ha-Lys135Hd* is too large then it could be a noe between
   # thr114Ha and thy1ch3/thy10ch3/thy38ch3/thy9ch3
 
-""".format(author=__author__, version=__version__, license=__license__)
+"""
+
+EPILOG = "Version:    {version}, Author:     {author}, License:    {license}".format(author=__author__, version=__version__, license=__license__)
 
 # Primary program configuration
 STRUCTURE_DICT  = {'id':0, 'atom':None, 'resi':None, 'resn':0, 'coor':(0.00, 0.00, 0.00)}
@@ -70,15 +73,15 @@ LOGLEVEL        = 'warning'
 CONFIG_FILE     = 'config_filterpeaks'
 
 def import_settings(pyfile):
-  
   """
   Import NOEfinder settings from Python style settings file.
   The importer expects to find a dictionary named 'settings' in
   the Python settings file. Only that dictionary is imported.
   
-  :param pyfile: Name or path to NOEfinder settings file.
-  :return: settings
-  :rtype: dict
+  :param pyfile: name or path to NOEfinder settings file.
+  :type pyfile:  str 
+  :return:       settings
+  :rtype:        dict
   """
   
   settings = {}
@@ -99,7 +102,6 @@ def import_settings(pyfile):
   return settings
   
 def translate_residue_names(residue):
-  
   """
   Translate residue name to a IUPAC PDB compatible naming
   convention. By default this means translating one and
@@ -115,9 +117,9 @@ def translate_residue_names(residue):
   as list.
   
   :param residue: residue name to translate
-  :ptype residue: string
-  :return: translated residue(s)
-  :rtype: list
+  :type residue:  string
+  :return:        translated residue(s)
+  :rtype:         list
   """
   
   if not options.use_residue_translation:
@@ -149,7 +151,6 @@ def translate_residue_names(residue):
   return resi
   
 def translate_atom_names(atom, residue=None):
-  
   """
   Translate atom names to a IUPAC PDB compatible naming
   convention.
@@ -164,9 +165,9 @@ def translate_atom_names(atom, residue=None):
   as list.
   
   :param residue: atom name to translate
-  :ptype residue: string
-  :return: translated atom(s)
-  :rtype: list
+  :type residue:  string
+  :return:        translated atom(s)
+  :rtype:         list
   """
   
   if not options.use_atom_translation:
@@ -208,14 +209,12 @@ def translate_atom_names(atom, residue=None):
   return atom_name
   
 class _Common(object):
-  
   """
   Base class with methods common to the Assignments,
   Peaks and Structure storage classes.
   """
   
-  def __repr__(self):
-    
+  def __repr__(self):  
     """
     Implements the class __repr__ magic method.
     """
@@ -224,7 +223,6 @@ class _Common(object):
     return '<{0} object with {1} {2}>'.format(obj.title(),len(self._store),obj)
   
   def __len__(self):
-    
     """
     Implements the class __len__ magic method.
     """
@@ -232,7 +230,6 @@ class _Common(object):
     return len(self._store)
   
   def __iter__(self):
-    
     """
     Implements the class __iter__ magic method.
     """
@@ -241,7 +238,6 @@ class _Common(object):
       yield element
   
   def __getitem__(self, key):
-    
     """
     Implements the class __getitem__ magic method.
     """
@@ -249,12 +245,12 @@ class _Common(object):
     return self._store[key]
   
   def add(self, element):
-    
     """
     Add a new record to the dictionary database.
-    Default record fields are defined in the self._base
-    dictionary wich is specific to the class that 
-    inherits from the _Common base class.
+    Default record fields are defined in the self._base dictionary wich is
+    specific to the class that inherits from the _Common base class.
+    
+    :param element: record to add
     """
     
     newelement = copy.copy(self._base)
@@ -264,7 +260,6 @@ class _Common(object):
     self._id += 1
   
   def get(self, key, default=None):
-    
     """
     Emulated the default dictionary get method.
     """
@@ -272,7 +267,6 @@ class _Common(object):
     return self._store.get(key, default)
   
   def iter_values(self):
-    
     """
     Iterate over the dictionary values.
     """
@@ -281,7 +275,6 @@ class _Common(object):
       yield self._store[key]
   
   def iter_items(self):
-    
     """
     Iterate over the dictionary items.
     """
@@ -290,10 +283,8 @@ class _Common(object):
       yield key, self._store[key]
 
 class Structure(_Common):
-  
   """
-  Class that controls a dictionary style 
-  storage of PDB style structures. 
+  Class that controls a dictionary style storage of PDB style structures. 
   Inherits from the _Common baseclass.
   """
   
@@ -304,10 +295,8 @@ class Structure(_Common):
     self._base  = STRUCTURE_DICT  
       
 class Assignments(_Common):
-  
   """
-  Class that controls a dictionary style 
-  storage of NMR assignments. 
+  Class that controls a dictionary style storage of NMR assignments. 
   Inherits from the _Common baseclass.
   """
   
@@ -318,10 +307,8 @@ class Assignments(_Common):
     self._base  = ASSIGNMENT_DICT
      
 class Peaks(_Common):
-  
   """
-  Class that controls a dictionary style 
-  storage of NMR peaks. 
+  Class that controls a dictionary style storage of NMR peaks. 
   Inherits from the _Common baseclass.
   """
   
@@ -332,7 +319,6 @@ class Peaks(_Common):
     self._base  = PEAKS_DICT
   
   def iter_assigned(self):
-    
     """
     Iterate over all assigned peaks
     
@@ -345,7 +331,6 @@ class Peaks(_Common):
         yield peak_id, peak
   
   def iter_nonassigned(self):
-    
     """
     Iterate over all non-assigned peaks
     
@@ -358,29 +343,27 @@ class Peaks(_Common):
         yield peak_id, peak
   
   def is_assigned(self, peak_id):
-    
     """
     Return True or False if the peak is assigned. 
     e.a if all dimensions have an assignment associated.
     
     :param peak_id: peak identifier
-    :ptype peak_id: int
+    :type peak_id:  int
     """
     
     assert peak_id in self._store, logging.error('No peak with ID: {0}'.format(peak_id))    
     return all([self._store[peak_id][ass] != 0 for ass in ('ass1','ass2','ass3')])
           
 def calculatedistance(vector1, vector2):
-  
   """
   Calculate the distance between two vectors (atoms)
   Returns the distance squared or None if vectors not aligned.
   
   :param vector1: First atom coordinate (x,y,z)
-  :ptype vector1: list
+  :type vector1:  list
   :param vector2: Second atom coordinate (x,y,z)
-  :ptype vector2: list
-  :return: squared distance between two atoms
+  :type vector2:  list
+  :return:        squared distance between two atoms
   """
   
   d= float(0)
@@ -392,12 +375,11 @@ def calculatedistance(vector1, vector2):
     return None
   
 def parse_sparky_proj(proj_file):
-  
   """
   Parse Sparky project file (.proj) to Assignments object
   
   :param proj_file: Sparky project file path
-  :ptype proj_file: string
+  :type proj_file:  string
   """
   
   assert os.path.exists(proj_file), 'Sparky project file {0} does not exist.'.format(proj_file)
@@ -456,7 +438,6 @@ def parse_sparky_proj(proj_file):
   return assignments
           
 def parse_xeasy_peaks(peak_file):
-  
   """
   Parse Xeasy3D peakfile to Peaks object
   
@@ -467,7 +448,7 @@ def parse_xeasy_peaks(peak_file):
   and may not be set at all by the user.
   
   :param peak_file: Xeasy3D peak file path
-  :ptype peak_file: string
+  :type peak_file:  string
   """
   
   assert os.path.exists(peak_file), 'Xeasy3D peakfile {0} does not exist.'.format(peak_file)
@@ -500,12 +481,11 @@ def parse_xeasy_peaks(peak_file):
   return peaks
 
 def parse_pdb(pdb_file):
-  
   """
   Parse RCSB PDB file to Structure object
   
   :param pdb_file: PDB structure file path
-  :ptype pdb_file: string
+  :type pdb_file:  str
   """
   
   assert os.path.exists(pdb_file), 'RCSB PDB file {0} does not exist.'.format(pdb_file)
@@ -533,23 +513,23 @@ def parse_pdb(pdb_file):
   return structure
 
 def get_ch_couple(peaks, assignments, chem_shift_ctol=0.5, chem_shift_ptol=0.05):
-  
   """
   Find carbond-proton assignment pairs for unassigned peaks
   matching carbon chemical shift +/- tolerance and proton 
   chemical shift +/- tolerance in w2 and w3 dimensions respectivly.
   
-  :param peaks: peaks
-  :ptype peaks: peak object
-  :param assignments: assignments
-  :ptype assignments: assignemnt object
+  :param peaks:           peaks
+  :type peaks:            peak object
+  :param assignments:     assignments
+  :type assignments:      assignemnt object
   :param chem_shift_ctol: carbon chemical shift tolerance range in ppm
-  :ptype chem_shift_ctol: float
+  :type chem_shift_ctol:  float
   :param chem_shift_ctol: Proton chemical shift tolerance range in ppm
-  :ptype chem_shift_ctol: float
-  :return: pairs of carbon,proton assignment ID's stored as dictionary
-           of peak id,assignment pair key/value pairs
-  :rtype: dict
+  :type chem_shift_ctol:  float
+  :return:                pairs of carbon,proton assignment ID's stored as
+                          dictionary of peak id,assignment pair key/value
+                          pairs
+  :rtype:                 dict
   """
   
   logging.info('Looking for Carbon-Proton pairs. C chemical shift tolerance: {0:.3f}, H chemical shift tolerance: {1:.3f}'.format(chem_shift_ctol, chem_shift_ptol))
@@ -581,7 +561,6 @@ def get_ch_couple(peaks, assignments, chem_shift_ctol=0.5, chem_shift_ptol=0.05)
   return ch_couple
 
 def find_unused(ch_couple, peaks, assignments, structure, dist_cutoff=6.0, chem_shift_ctol=0.5, chem_shift_ptol=0.05):
-  
   """
   For each previously identified Carbon-Proton pair do:
   - Check if the carbon coordinates can be retrieved from the structure.
@@ -669,7 +648,6 @@ def catagorize_assignment(c, ch, h, dist):
   return cat
     
 def main(options):
-  
   """
   Main program.
   - Parse peaks, assignments and structure files
@@ -708,7 +686,7 @@ if __name__ == '__main__':
   import argparse
 
   parser = argparse.ArgumentParser(
-      description='filterPeaks command line options', usage=USAGE,
+      description='filterPeaks command line options', usage=USAGE, epilog=EPILOG,
       formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument( "-p", "--peaks", action="store", dest="peak_file", type=str, help="Xeasy peak file", required=True)
   parser.add_argument( "-a", "--assignemnts", action="store", dest="assignment_file", type=str, help="Xeasy assignement file")

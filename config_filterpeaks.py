@@ -1,11 +1,13 @@
+# -*- coding: utf-8 -*-
+
 """
 FilterPeaks Python configuration file.
 
 version  : 1.0.0
 author   : Marc van Dijk
 status   : release beta1
-date     : 10 March 2016
-copyright: Copyright (c) 2016 Marc van Dijk
+date     : 1 January 2017
+copyright: Copyright (c) 2017 Marc van Dijk
 
 This Python style configuration file re-defines the default
 FilterPeaks program configuration and defines the residue 
