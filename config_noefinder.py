@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-FilterPeaks Python configuration file.
+NOEfinder Python configuration file.
 
 version  : 1.0.0
 author   : Marc van Dijk
@@ -10,7 +10,7 @@ date     : 1 January 2017
 copyright: Copyright (c) 2017 Marc van Dijk
 
 This Python style configuration file re-defines the default
-FilterPeaks program configuration and defines the residue 
+NOEfinder program configuration and defines the residue 
 and atom translation scheme required to convert the often
 ambiguous (Sparky) residue and atom naming to the standard
 IUPAC PDB naming convention. This enables the matching 
@@ -30,7 +30,7 @@ to store all settings. A dictionary name other than 'settings'
 or a syntax error will not load the file.
 
 Residue and atom name translation:
-The FilterPeaks program uses a two step translation proces;
+The NOEfinder program uses a two step translation proces;
 first the residue name is translated followed by the atom name
 in the scope of the translated residue name. If the residue 
 translation was unsuccessful, the atom translation will fallback
