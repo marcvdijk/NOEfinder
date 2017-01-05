@@ -97,7 +97,8 @@ USE_ATOM_TRANS  = False
 USE_RESI_TRANS  = False
 USE_REGEX_MATCH = False
 LOGLEVEL        = 'warning'
-CONFIG_FILE     = 'config_filterpeaks'
+CONFIG_FILE     = 'config_noefinder'
+NONASSIGNEDID   = set(['NC.', 'NC=?', '= NX?'])
 
 def import_settings(pyfile):
     """
@@ -538,11 +539,12 @@ def parse_pdb(pdb_file):
     
     return structure
 
-def get_ch_couple(peaks, assignments, chem_shift_ctol=0.5, chem_shift_ptol=0.05):
+def get_chh_couple(peaks, assignments, chem_shift_ctol=0.5, chem_shift_ptol=0.05):
     """
-    Find carbond-proton assignment pairs for unassigned peaks
-    matching carbon chemical shift +/- tolerance and proton
-    chemical shift +/- tolerance in w2 and w3 dimensions respectivly.
+    Find carbond-proton assignment pairs for unassigned peaks matching carbon
+    chemical shift +/- tolerance and proton chemical shift +/- tolerance in 
+    w2 and w3 dimensions respectivly. In addition look for proton assignments 
+    in the w1 dimension for previous identified C-H couple.
     
     :param peaks:           peaks
     :type peaks:            peak object
@@ -552,17 +554,18 @@ def get_ch_couple(peaks, assignments, chem_shift_ctol=0.5, chem_shift_ptol=0.05)
     :type chem_shift_ctol:  float
     :param chem_shift_ctol: Proton chemical shift tolerance range in ppm
     :type chem_shift_ctol:  float
-    :return:                pairs of carbon,proton assignment ID's stored as
-                          dictionary of peak id,assignment pair key/value
-                          pairs
+    :return:                enumerated dictionary with tuples containing
+                            in sequence; peak ID and assignment ID's for 
+                            C (w2), H (w3) and H (w1).
     :rtype:                 dict
     """
     
-    logging.info('Looking for Carbon-Proton pairs. C chemical shift tolerance: {0:.3f}, H chemical shift tolerance: {1:.3f}'.format(chem_shift_ctol, chem_shift_ptol))
-    
+    logging.info('Looking for Carbon-Proton-Proton pairs. C chemical shift tolerance: {0:.3f}, H chemical shift tolerance: {1:.3f}'.format(chem_shift_ctol, chem_shift_ptol))
+     
     # For all unassigned peaks, search assignments for residues
     # that match the carbon shift +/- chem_shift_ctol
-    ch_couple = {}
+    chh_couple = {}
+    enum = 1
     for pid,peak in peaks.iter_nonassigned():
         
         for id2,ass2 in assignments.iter_items():
@@ -578,26 +581,52 @@ def get_ch_couple(peaks, assignments, chem_shift_ctol=0.5, chem_shift_ptol=0.05)
                     ass2['resn'] == ass3['resn'] and
                     ass3['nuc'] == '1H'):
                     
-                    ch_couple[peak['id']] = (id2, id3)
+                    chh_couple[enum] = (peak['id'], id2, id3)
                     logging.debug('Peak {0}: carbon-proton assignment pair found {1}-{2}'.format(peak['id'],ass2['id'],ass3['id']))
-            
-            if not peak['id'] in ch_couple:
-                logging.info("No C-H couple found for peak %i" % peak['id'])
+                    
+                    # Continue to look for unassigned peaks in w1 dimension
+                    w1_found = False
+                    for id1,ass1 in assignments.iter_items():
+                        if (peak['w1'] > (ass1['shift'] - chem_shift_ptol) and
+                            peak['w1'] < (ass1['shift'] + chem_shift_ptol) and
+                            ass1['nuc'] == '1H'):
+                    
+                            chh_couple[enum] = (peak['id'], id2, id3, id1)
+                            logging.debug('Peak {0}: found proton assignment in w1: {1} for C-H couple: {2}-{3}'.format(peak['id'],ass1['id'],ass2['id'],ass3['id']))
+                            enum += 1
+                            w1_found = True
+                    
+                    if not w1_found:
+                        enum += 1
+                            
+            if not peak['id'] in chh_couple:
+                logging.info('No C-H couple found for peak {0}'.format(peak['id']))
     
-    return ch_couple
+    logging.info('Identified {0} C-H-(H) assignment couples for unassigned peaks'.format(len(chh_couple)))
+    return chh_couple
 
-def find_unused(ch_couple, peaks, assignments, structure, dist_cutoff=6.0, chem_shift_ctol=0.5, chem_shift_ptol=0.05):
+def find_unused(chh_couple, peaks, assignments, structure=None, dist_cutoff=6.0, chem_shift_ctol=0.5, chem_shift_ptol=0.05):
     """
-    For each previously identified Carbon-Proton pair do:
-    - Check if the carbon coordinates can be retrieved from the structure.
-    - If the carbon coordinates where not found, protons in the w1 dimension cannot be resolved.
-    Store the C-H couple as 'noccoor' and continue.
-    - If the coordinates where found, check the w1 dimension for unassigned peaks matching carbon
-    chemical shift +/- tolerance.
-    - If a peak was found, check if the coordinates can be retrieved from the structure.
-    - If coordinates where found, check if the distance is below dist_cutoff and store with the
-    C-H couple in 'unused'.
+    For each previously identified Carbon-Proton-(Proton) (w2-w3-(w1)) pair do:
+    - Check if the carbon coordinates can be retrieved from the structure if available.
+    - If the coordinates where found, check if the assignment in the w1 dimension 
+      (the unassigned peaks) can be found in the structure.
+    - If coordinates where found, check if the distance is below dist_cutoff and
+      store with the C-H couple in 'unused'.
     - If the coordinates where not found, store with the C-H couple in 'distcutoff'.
+    
+    :param chh_couple:      C-H-(H) (W2-W3-(W1)) couples as identified by 
+                            get_chh_couple function.
+    :type chh_couple:       dict
+    :param peaks:           peaks object
+    :param assignments:     assignments object
+    :param structure:       structure object
+    :param dist_cutoff:     distance cutoff in Angstrom
+    :type dist_cutoff:      float
+    :param chem_shift_ctol: carbon chemical shift tolerance range in ppm
+    :type chem_shift_ctol:  float
+    :param chem_shift_ctol: Proton chemical shift tolerance range in ppm
+    :type chem_shift_ctol:  float
     """
     
     logging.info('Looking for Carbon-Proton-Proton pairs. C chemical shift tolerance: {0:.3f}, H chemical shift tolerance: {1:.3f}, Distance cutoff: {2:.3f}'.format(chem_shift_ctol, chem_shift_ptol, dist_cutoff))
@@ -606,56 +635,84 @@ def find_unused(ch_couple, peaks, assignments, structure, dist_cutoff=6.0, chem_
     print("      <Carbon dimension (w2)>         <Proton dimension (w3)           <Proton dimension (w1)>")
     print("Peak  ID resi resn atom shift         ID resi resn atom shift          ID resi resn atom shift           Cat.  Distance (A)")
     
-    # Using peaks for which CH couple was identified, scan for proton shifts of protein/ligand/noise (w1)
-    for pid in sorted(ch_couple.keys()):
+    # Using peaks for which CH(H) couple was identified, validate distances
+    for pid in sorted(chh_couple.keys()):
         
-        peak     = peaks[pid]
-        assign_c = assignments[ch_couple[pid][0]]
-        assign_h = assignments[ch_couple[pid][1]]
+        peak       = peaks[chh_couple[pid][0]]
+        assign_cw2 = assignments[chh_couple[pid][1]]
+        assign_hw3 = assignments[chh_couple[pid][2]]
+        assign_hw1 = assignments[chh_couple[pid][3]] or None
         
         # Look for carbon atom in structure and store coordinates.
-        carbon = None
-        for aid,atom in structure.iter_items():
-            if atom['resn'] == assign_c['resn'] and atom['atom'] == assign_c['atom']:
-                carbon = atom['coor']
-                break
+        dist = 999
+        if structure:
+            carbon = None
+            for aid,atom in structure.iter_items():
+                if atom['resn'] == assign_cw2['resn'] and atom['atom'] == assign_cw2['atom']:
+                    carbon = atom['coor']
+                    break
         
-        # If carbon found, continue
-        if carbon:
+            # If carbon found, continue
+            if carbon and assign_hw1:
+                
+                # There could be ambiquity in atom numbering/naming resulting in multiple 
+                # distances calculated (but unlikely). Report the smallest distance
+                found_distance = []
+                for aid1,atom1 in structure.iter_items():
+                    if atom1['resn'] == assign_hw1['resn'] and atom1['atom'] == assign_hw1['atom']:
+                        dist = calculatedistance(carbon, atom1['coor'])
+                        if dist <= dist_cutoff:
+                            found_distance.append(dist)
+                
+                dist = 999
+                if found_distance:
+                    if len(found_distance) > 1:
+                        logging.warning('Multiple atomic distances calculated for C{0}-H{1}. Report smallest distance'.format(atom['atom'],atom1['atom']))
+                    dist = sqrt(min(found_distance))
             
-            # Look for unused peaks
-            for id1,ass1 in assignments.iter_items():
-                if (peak['w1'] > (ass1['shift'] - chem_shift_ptol) and
-                    peak['w1'] < (ass1['shift'] + chem_shift_ptol) and
-                    ass1['nuc'] == '1H'):
-                    
-                    found_distance = []
-                    for aid1,atom1 in structure.iter_items():
-                        if atom1['resn'] == ass1['resn'] and atom1['atom'] == ass1['atom']:
-                            dist = calculatedistance(carbon, atom1['coor'])
-                            if dist <= dist_cutoff:
-                                found_distance.append(dist)
-                    
-                    # No distance found
-                    dist = 999
-                    if found_distance:
-                        dist = sqrt(min(found_distance))
-                    
-                    cat = catagorize_assignment(assign_c, assign_h, ass1, dist)
-                    print("%-4i C: %4i %3s %-3i %4s %-10.3f C-H: %4i %3s %-3i %4s %-10.3f H: %4i %3s %-4i %5s %3.3f %9s %5.3f" % (pid,
-                        assign_c['id'], assign_c['resi'], assign_c['resn'], assign_c['atom'], assign_c['shift'],
-                        assign_h['id'], assign_h['resi'], assign_h['resn'], assign_h['atom'], assign_h['shift'],
-                        ass1['id'], ass1['resi'], ass1['resn'], ass1['atom'], ass1['shift'], cat, dist))
+                cat = catagorize_assignment(assign_cw2, assign_hw3, assign_hw1, dist)
+                print_chh_info(assign_cw2, assign_hw3, assign_hw1, pid, cat, dist)
+                
+                continue
+                   
+            logging.warning('Carbon atom {0} {1}-{2} of carbon-proton pair {3}-{4} (peak {5}) not found in structure'.format(assign_cw2['atom'],
+                assign_cw2['resi'], assign_cw2['resn'], assign_cw2['id'], assign_hw3['id'], pid))
         
-        else:
-            logging.warning('Carbon atom {0} {1}-{2} of carbon-proton pair {3}-{4} (peak {5}) not found in structure'.format(assign_c['atom'],
-                assign_c['resi'], assign_c['resn'], assign_c['id'], assign_h['id'], pid))
-            
-            print("%-4i C: %4i %3s %-3i %4s %-10.3f C-H: %4i %3s %-3i %4s %-10.3f H:  not found in structure   %9s" % (pid,
-                assign_c['id'], assign_c['resi'], assign_c['resn'], assign_c['atom'], assign_c['shift'],
-                assign_h['id'], assign_h['resi'], assign_h['resn'], assign_h['atom'], assign_h['shift'], 'NCXX'))
-
+        # If no structure or no carbon print C-H-(H) couple
+        cat = catagorize_assignment(assign_cw2, assign_hw3, assign_hw1, dist)
+        print_chh_info(assign_cw2, assign_hw3, assign_hw1, pid, cat, dist)
+        
 def catagorize_assignment(c, ch, h, dist):
+    """
+    Catagorize the identified C-H-(H) assigned couple by labeling them with a
+    four character capitalized string (Cat. column). The first two characters
+    indicate:
+
+    - IR: Inter Residue assignment, any C-H-H assignment between two different
+          residues.
+    - TB: Through Bond, assignment includes atoms covalently linked (calculated 
+          distance < 1.09 Å)
+    - TR: Through Residue, assignment includes atoms part of the same residue 
+          (name and number)
+    - NX: No carbon atom found in structure, no distance calculated
+
+    The second two characters indicate:
+    - PP: Assignment includes protein residues only (standard amino-acids).
+    - PO: Assignment includes a protein residue and a non-protein residue judged by
+          residue name.
+    - XX: Not assigned, in case of NC. NC=? = NX? (conatined in NONASSIGNEDID set)
+    
+    :param c:    carbon W2 assignment
+    :type c:     assignments object
+    :param ch:   proton W3 assignment
+    :type ch:    assignments object
+    :param h:    proton W1 assignment
+    :type h:     assignments object
+    :param dist: calculated distance or 999
+    :type dist:  int
+    :return:     assignment catagory
+    :rtype:      str
+    """
     
     resi = [c['resi'],ch['resi'],h['resi']]
     resn = [c['resn'],ch['resn'],h['resn']]
@@ -663,16 +720,35 @@ def catagorize_assignment(c, ch, h, dist):
     cat = 'IR'
     if dist < 1.09:
         cat = 'TB'
+    elif dist == 999:
+        cat = 'NX'
     elif len(set(resi)) == 1 and len(set(resn)) == 1:
         cat = 'TR'
     
     if all([r in options.protein_residues for r in resi]):
         cat += 'PP'
+    elif len(NONASSIGNEDID.intersection(set(resi))):
+        cat += 'XX'
     else:
         cat += 'PO'
     
     return cat
 
+def print_chh_info(assign_cw2, assign_hw3, assign_hw1, pid, cat, dist):
+    """
+    Report C-H-(H) couple assignment information in tabular form
+    """
+    
+    if assign_hw1:
+        print("%-4i C: %4i %3s %-3i %4s %-10.3f C-H: %4i %3s %-3i %4s %-10.3f H: %4i %3s %-4i %5s %3.3f %9s %5.3f" % (pid,
+            assign_cw2['id'], assign_cw2['resi'], assign_cw2['resn'], assign_cw2['atom'], assign_cw2['shift'],
+            assign_hw3['id'], assign_hw3['resi'], assign_hw3['resn'], assign_hw3['atom'], assign_hw3['shift'], 
+            assign_hw1['id'], assign_hw1['resi'], assign_hw1['resn'], assign_hw1['atom'], assign_hw1['shift'], cat, dist))
+    else:
+        print("%-4i C: %4i %3s %-3i %4s %-10.3f C-H: %4i %3s %-3i %4s %-10.3f H:  not found in structure   %9s %5.3f" % (pid,
+            assign_cw2['id'], assign_cw2['resi'], assign_cw2['resn'], assign_cw2['atom'], assign_cw2['shift'],
+            assign_hw3['id'], assign_hw3['resi'], assign_hw3['resn'], assign_hw3['atom'], assign_hw3['shift'], cat, dist))
+    
 def main(options):
     """
     Main program.
@@ -692,15 +768,18 @@ def main(options):
     assignments = parse_sparky_proj(options.sparky_file)
     
     # Parse PDB structure file into structure class
-    structure = parse_pdb(options.pdb_file)
+    structure = None
+    if options.pdb_file:
+        structure = parse_pdb(options.pdb_file)
     
     # Look for carbon-proton pairs
-    ch_couple = get_ch_couple(peaks, assignments,
+    chh_couple = get_chh_couple(peaks, assignments,
                             chem_shift_ctol=options.chem_shift_ctol,
                             chem_shift_ptol=options.chem_shift_ptol)
     
     # Look for unused peaks in w1 dimension that could be a missing proton in the ch pair
-    find_unused(ch_couple, peaks, assignments, structure,
+    find_unused(chh_couple, peaks, assignments,
+              structure=structure,
               dist_cutoff=options.struc_dist_tol,
               chem_shift_ctol=options.chem_shift_ctol,
               chem_shift_ptol=options.chem_shift_ptol)
@@ -720,7 +799,7 @@ if __name__ == '__main__':
     parser.add_argument( "-p", "--peaks", action="store", dest="peak_file", type=str, help="Xeasy peak file", required=True)
     parser.add_argument( "-a", "--assignemnts", action="store", dest="assignment_file", type=str, help="Xeasy assignement file")
     parser.add_argument( "-y", "--sparky", action="store", dest="sparky_file", type=str, help="Sparky .proj project file", required=True)
-    parser.add_argument( "-s", "--pdb", action="store", dest="pdb_file", type=str, help="PDB structure file", required=True)
+    parser.add_argument( "-s", "--pdb", action="store", dest="pdb_file", type=str, help="PDB structure file")
     parser.add_argument( "-c", "--shiftctol", action="store", dest="chem_shift_ctol", type=float, default=default_options.get('chem_shift_ctol',SHIFTCTOL), help="Carbon chemical shift tolerance in PPM")
     parser.add_argument( "-b", "--shiftptol", action="store", dest="chem_shift_ptol", type=float, default=default_options.get('chem_shift_ptol',SHIFTPTOL), help="Proton chemical shift tolerance in PPM")
     parser.add_argument( "-d", "--disttol", action="store", dest="struc_dist_tol", type=float, default=default_options.get('struc_dist_tol',DISTTOL), help="Distance cutoff in A")

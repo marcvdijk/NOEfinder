@@ -14,3 +14,5 @@ FilterPeaks performs this task by:
 * Find carbond-proton assignment pairs for unassigned peaks
   matching carbon (13C) chemical shift +/- tolerance and proton (1H)
   chemical shift +/- tolerance in w2 and w3 dimensions respectivly.
+
+Example usage:
