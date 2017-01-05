@@ -32,9 +32,9 @@ ligand.
 Input:
 - peakfile: H-C-H noesy peakfile in Xeasy format
 - Sparky project: a Sparky .proj file
-- PDB: PDB structure file
+- PDB (obtional): PDB structure file
   
-  ./NOEfinder.py -p <peakfile> -y <Sparky project> -s <PDB file>
+  python NOEfinder.py -p <peakfile> -y <Sparky project> -s <PDB file>
 
 Output:
 The NOEfinder program reports results as tabular output written to standard out.
