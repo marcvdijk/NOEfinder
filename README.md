@@ -1,12 +1,50 @@
 # NOEfinder
+
 Making better use of unused peaks
 
-NOEfinder is designed to resolve peaks that have not been used for the structure
-calculation process of a typical protein. These peaks may contain additional
-protein assignments but also protein-ligand NOE peaks. The latter are often not
-a target of structure calculation programs because they focus on resolving the 
-protein structure but they contain valuable information on the orientation of the
-ligand.
+The NOEfinder program is designed to extract information on intermolecular
+contacts involving proteins or proteins and other biomolecules that is 
+potentially availale in a collection of unused peaks obtained from a typical
+3D 13C-NOESY-HSQC or 15N-NOESY-HSQC NMR experiment.
+These peaks may contain additional protein assignments but also 
+protein-ligand NOE peaks. The latter are often not a target of structure 
+calculation programs because they focus on resolving the protein structure 
+but they contain valuable information on the orientation of the ligand.
+
+The program attempts to assign these unused peaks by mimicing parts of the
+automatic assignment routines availabe in popular NMR structure calculation
+programs using the following execution workflow:
+
+1.  Parse information for unused peaks from a Xeasy peaks file (unused column).
+2.  Parse assignment information from a Sparky project file.
+3.  Optionally parse the structure of the system under study from a PDB file.
+4.  Search for carbon-proton (CH) pairs among the unused peaks by by matching the
+    carbon chemical shift with a tolerance of 0.5 ppm and the proton chemical
+    shift with a tolerance of 0.05 ppm in the w2 and w3 dimensions respectively.
+    Tolerance values can be adjusted.
+5.  For the identified CH couple search for a matching unused proton peak in the
+    w1 dimension with a proton chemical shift tolerance of 0.05 ppm.
+    The identified CHH pair 
+6.  If a structure file was parsed, identify the carbon of the carbon-proton
+    couple identified in step 4 and the proton of the carbon-proton-proton pair
+    identified in step 5. Calculate the distance between the carbon and the
+    latter proton in Angstrom.
+7.  If the distance is below a predefined cutoff (6A by default) the assignment
+    is labeled as potential intermolecular NOE.
+8.  Label the CHH pairs as inter- or intra-residue assignment based on the 
+    residue numbers. Label the assignment protein-protein (PP) if there are only
+    amino-acids involved or protein-other (PO) if one of the partners is not 
+    an amino-acid. The requires a correct atom and residue naming scheme to be
+    used in the assignment file. NOEfinder includes tools to assist on atom and
+    residue translations.
+9.  If a structure file was parsed and a distance could be calculated for a CHH
+    pair, the information in step 8 can be further specified as through bond (TB),
+    through residue (TR) or inter-residue (IR) assignments.
+10. Print peak and assignment information for all identified CHH pairs to the 
+    terminal standard output in a table format. This table contains the CHH pair
+    label assigned in step 8 and 9 and the calculated distance if obtained (999
+    otherwise). The table format can be easily parsed and filtered using standard
+    UNIX command line tools (e.a. grep,awk,sed).
 
 Input:
 
@@ -61,14 +99,6 @@ to match those of the assignments which is very often not the case.
 The NOEfinder program offers advanced residue and atom translation services for
 this purpose. Please consult the config_noefinder.py file for more information
 on how to use it.
-
-NOEfinder is designed to resolve peaks that have not been used
-for the structure calculation process of a typical protein.
-These peaks may contain additional protein assignements but also
-protein-ligand NOE peaks. The latter are often not a target of 
-structure calculation programs because they focus on resolving 
-the protein structure but they contain valuble information on 
-the orientation of the ligand.
 
 NOEfinder performs this task by:
 * Loading unassigned peaks from a 3D NOE experiment (Xeasy format).
