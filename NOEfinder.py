@@ -608,12 +608,16 @@ def get_chh_couple(peaks, assignments, chem_shift_ctol=0.5, chem_shift_ptol=0.05
 def find_unused(chh_couple, peaks, assignments, structure=None, dist_cutoff=6.0, chem_shift_ctol=0.5, chem_shift_ptol=0.05):
     """
     For each previously identified Carbon-Proton-(Proton) (w2-w3-(w1)) pair do:
-    - Check if the carbon coordinates can be retrieved from the structure if available.
-    - If the coordinates where found, check if the assignment in the w1 dimension 
+    - Check if the carbon coordinates can be retrieved from the structure if
+      available.
+    - If carbon coordinates, check if the attached proton (w3) can be found in 
+      structure and validate the covalent bond length.
+    - If w3 proton coordinates, check if the assignment in the w1 dimension 
       (the unassigned peaks) can be found in the structure.
-    - If coordinates where found, check if the distance is below dist_cutoff and
-      store with the C-H couple in 'unused'.
-    - If the coordinates where not found, store with the C-H couple in 'distcutoff'.
+    - If coordinates where found, check if the distance is below dist_cutoff
+      then store the distance.
+    - Catagorize the carbon-proton-proton pair using the 'catagorize_assignment'
+      and print the results to standard out.
     
     :param chh_couple:      C-H-(H) (W2-W3-(W1)) couples as identified by 
                             get_chh_couple function.
@@ -647,27 +651,42 @@ def find_unused(chh_couple, peaks, assignments, structure=None, dist_cutoff=6.0,
         dist = 999
         if structure:
             carbon = None
-            for aid,atom in structure.iter_items():
-                if atom['resn'] == assign_cw2['resn'] and atom['atom'] == assign_cw2['atom']:
-                    carbon = atom['coor']
+            for aid_cw2,atom_cw2 in structure.iter_items():
+                if atom_cw2['resn'] == assign_cw2['resn'] and atom_cw2['atom'] == assign_cw2['atom']:
+                    carbon = atom_cw2['coor']
                     break
         
             # If carbon found, continue
             if carbon and assign_hw1:
                 
+                # Find proton W3 and calculate distance to carbon to ensure it is
+                # covalently attached.
+                w3proton = None
+                for aid_w3,atom_w3 in structure.iter_items():
+                    if atom_w3['resn'] == assign_hw3['resn'] and atom_w3['atom'] == assign_hw3['atom']:
+                        cw2_w3_dist = calculatedistance(carbon, atom_w3['coor'])
+                        if 1.16 < cw2_w3_dist < 1.21:
+                            w3proton = atom_w3['coor']
+                
+                if not w3proton:
+                    logging.debug('Proton {0} {1}-{2} of carbon-proton pair {3}-{4} (peak {5}) not found in structure'.format(assign_hw3['atom'],
+                        assign_hw3['resi'], assign_hw3['resn'], assign_hw3['id'], assign_hw3['id'], pid))
+                    continue
+                
+                # Calculate distance between proton W3 and proton W1.
                 # There could be ambiquity in atom numbering/naming resulting in multiple 
                 # distances calculated (but unlikely). Report the smallest distance
                 found_distance = []
-                for aid1,atom1 in structure.iter_items():
-                    if atom1['resn'] == assign_hw1['resn'] and atom1['atom'] == assign_hw1['atom']:
-                        dist = calculatedistance(carbon, atom1['coor'])
+                for aid_w1,atom_w1 in structure.iter_items():
+                    if atom_w1['resn'] == assign_hw1['resn'] and atom_w1['atom'] == assign_hw1['atom']:
+                        dist = calculatedistance(w3proton, atom_w1['coor'])
                         if dist <= dist_cutoff:
                             found_distance.append(dist)
                 
                 dist = 999
                 if found_distance:
                     if len(found_distance) > 1:
-                        logging.warning('Multiple atomic distances calculated for C{0}-H{1}. Report smallest distance'.format(atom['atom'],atom1['atom']))
+                        logging.warning('Multiple atomic distances calculated for CH{0}-H{1}. Report smallest distance'.format(atom_cw2['atom'],atom_w1['atom']))
                     dist = sqrt(min(found_distance))
             
                 cat = catagorize_assignment(assign_cw2, assign_hw3, assign_hw1, dist)
