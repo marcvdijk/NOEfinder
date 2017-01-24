@@ -816,7 +816,6 @@ if __name__ == '__main__':
         description='filterPeaks command line options', usage=USAGE, epilog=EPILOG,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument( "-p", "--peaks", action="store", dest="peak_file", type=str, help="Xeasy peak file", required=True)
-    parser.add_argument( "-a", "--assignemnts", action="store", dest="assignment_file", type=str, help="Xeasy assignement file")
     parser.add_argument( "-y", "--sparky", action="store", dest="sparky_file", type=str, help="Sparky .proj project file", required=True)
     parser.add_argument( "-s", "--pdb", action="store", dest="pdb_file", type=str, help="PDB structure file")
     parser.add_argument( "-c", "--shiftctol", action="store", dest="chem_shift_ctol", type=float, default=default_options.get('chem_shift_ctol',SHIFTCTOL), help="Carbon chemical shift tolerance in PPM")
