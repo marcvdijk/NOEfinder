@@ -690,7 +690,7 @@ def find_unused(chh_couple, peaks, assignments, structure=None, dist_cutoff=6.0,
                     dist = sqrt(min(found_distance))
             
                 cat = catagorize_assignment(assign_cw2, assign_hw3, assign_hw1, dist)
-                print_chh_info(assign_cw2, assign_hw3, assign_hw1, pid, cat, dist)
+                print_chh_info(assign_cw2, assign_hw3, assign_hw1, peak['id'], cat, dist)
                 
                 continue
                    
@@ -699,7 +699,7 @@ def find_unused(chh_couple, peaks, assignments, structure=None, dist_cutoff=6.0,
         
         # If no structure or no carbon print C-H-(H) couple
         cat = catagorize_assignment(assign_cw2, assign_hw3, assign_hw1, dist)
-        print_chh_info(assign_cw2, assign_hw3, assign_hw1, pid, cat, dist)
+        print_chh_info(assign_cw2, assign_hw3, assign_hw1, peak['id'], cat, dist)
         
 def catagorize_assignment(c, ch, h, dist):
     """
