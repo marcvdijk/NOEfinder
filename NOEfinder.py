@@ -50,13 +50,15 @@ character capitalized string (Cat. column). The first two characters indicate:
       distance < 1.09 Å)
 - TR: Through Residue, assignment includes atoms part of the same residue 
       (name and number)
-- NX: No carbon atom found in structure.
+- NX: One or both atoms not found in the structure, not distance could be 
+      calculated and a TR label could not be assigned.
 
 The second two characters indicate:
 - PP: Assignment includes protein residues only (standard amino-acids).
 - PO: Assignment includes a protein residue and a non-protein residue judged by
       residue name.
-- XX: Not assigned, in case of NC. NC=? = NX?
+- XX: No residue assignment label available including non-assignment identifiers:
+      'NC.', 'NC=?', '= NX?'
 
 The label allows for easy sorting and filtering of the output table using
 standard UNIX command line tools. The last column of the table holds the
@@ -713,13 +715,15 @@ def catagorize_assignment(c, ch, h, dist):
           distance < 1.09 Å)
     - TR: Through Residue, assignment includes atoms part of the same residue 
           (name and number)
-    - NX: No carbon atom found in structure, no distance calculated
+    - NX: One or both atoms not found in the structure, not distance could be 
+          calculated and a TR label could not be assigned.
 
     The second two characters indicate:
     - PP: Assignment includes protein residues only (standard amino-acids).
     - PO: Assignment includes a protein residue and a non-protein residue judged by
           residue name.
-    - XX: Not assigned, in case of NC. NC=? = NX? (conatined in NONASSIGNEDID set)
+    - XX: No residue assignment label available including non-assignment identifiers:
+          'NC.', 'NC=?', '= NX?' (contained in NONASSIGNEDID set)
     
     :param c:    carbon W2 assignment
     :type c:     assignments object
@@ -737,12 +741,12 @@ def catagorize_assignment(c, ch, h, dist):
     resn = [c['resn'],ch['resn'],h['resn']]
     
     cat = 'IR'
+    if len(set(resi)) == 1 and len(set(resn)) == 1:
+        cat = 'TR'
     if dist < 1.09:
         cat = 'TB'
-    elif dist == 999:
+    if dist == 999:
         cat = 'NX'
-    elif len(set(resi)) == 1 and len(set(resn)) == 1:
-        cat = 'TR'
     
     if all([r in options.protein_residues for r in resi]):
         cat += 'PP'
